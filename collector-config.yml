@@ -1,0 +1,20 @@
+# collector-config.yml
+receivers:
+  otlp:
+    protocols:
+      http:
+
+exporters:
+  elasticsearch:
+    # O index logsage-otel-* receberá os logs BRUTOS do OpenTelemetry
+    index: "logsage-otel-%{yyyy.MM.dd}" 
+    endpoints: ["http://elasticsearch:9200"] 
+  
+  logging:
+    loglevel: warn
+
+service:
+  pipelines:
+    logs:
+      receivers: [otlp] 
+      exporters: [elasticsearch, logging]

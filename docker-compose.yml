@@ -1,0 +1,69 @@
+version: '3.8' 
+
+services:
+  # 1. Elasticsearch (Banco de dados de logs)
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.17.0
+    container_name: es01
+    environment:
+      - xpack.security.enabled=false 
+      - discovery.type=single-node
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m" 
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    volumes:
+      - esdata:/usr/share/elasticsearch/data
+    ports:
+      - 9200:9200 
+    networks:
+      - log-network
+
+  # 2. Kibana (Visualização e Exploração de Dados)
+  kibana:
+    image: docker.elastic.co/kibana/kibana:7.17.0
+    container_name: kib01
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    ports:
+      - 5601:5601 
+    depends_on:
+      - elasticsearch
+    networks:
+      - log-network
+
+  # 3. Grafana (Dashboards)
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - 3000:3000 
+    networks:
+      - log-network
+    volumes:
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      - elasticsearch
+
+  # 4. OpenTelemetry Collector (Ponto de entrada dos logs)
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.91.0
+    container_name: otel_collector
+    command: ["--config=/etc/collector-config.yml"]
+    volumes:
+      - ./collector-config.yml:/etc/collector-config.yml 
+    ports:
+      - "4318:4318" # Porta para receber logs via OTLP HTTP
+    depends_on:
+      - elasticsearch
+    networks:
+      - log-network
+
+networks:
+  log-network:
+    driver: bridge
+
+volumes:
+  esdata:
+  grafana_data:
